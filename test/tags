@@ -1,0 +1,12 @@
+!_TAG_FILE_SORTED	2	/0=unsorted, 1=sorted, 2=foldcase/
+CC	/data/3third_wapper/test/makefile	/^CC=g++$/;"	m	language:Make
+CFLAGS	/data/3third_wapper/test/makefile	/^CFLAGS= -g -Wall -fPIC -std=c++0x$/;"	m	language:Make
+DEST	/data/3third_wapper/test/makefile	/^DEST=test$/;"	m	language:Make
+INC	/data/3third_wapper/test/makefile	/^INC=\/data\/3third_wapper\/include\/  \/data\/3third\/zookeeper_c\/zookeeper\/include\/  \/data\/3third\/memcache\/libmemcached-1.0.18\/libmemcached\/$/;"	m	language:Make
+LIB	/data/3third_wapper/test/makefile	/^LIB=3rd_wrapper comm_tool  zookeeper_mt memcached pthread $/;"	m	language:Make
+LIBPATH	/data/3third_wapper/test/makefile	/^LIBPATH=\/data\/3third_wapper\/lib\/  \/data\/own_comm\/lib\/  \/data\/3third\/zookeeper_c\/zookeeper\/lib\/ \/data\/3third\/memcache\/libmemcached-1.0.18\/libmemcached\/.libs\/$/;"	m	language:Make
+main	/data/3third_wapper/test/test.cpp	/^int main(void)$/;"	f	language:C++
+OBJ	/data/3third_wapper/test/makefile	/^OBJ=$(patsubst %.cpp, %.o, $(SOURCE))$/;"	m	language:Make
+OWN_COMM_PATH	/data/3third_wapper/test/makefile	/^OWN_COMM_PATH=\/data\/own_comm$/;"	m	language:Make
+SOURCE	/data/3third_wapper/test/makefile	/^SOURCE=$(wildcard *.cpp)$/;"	m	language:Make
+THIRD_PAHT	/data/3third_wapper/test/makefile	/^THIRD_PAHT=\/data\/3third$/;"	m	language:Make
