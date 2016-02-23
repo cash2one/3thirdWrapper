@@ -5,7 +5,6 @@
 #include <string.h>
 #include "wrapper_mysql.h"
 #include <stdio.h>
-//#include "tlib_log.h"
 
 MYSQL * mysql_connect(MYSQL* pstMysql, const char * host, const char * user, const char * passwd, int port)
 {
@@ -16,13 +15,13 @@ void TLib_DB_Init(TLIB_DB_LINK *pstDBLink,int iMultiDBConn, const char* format)
 {
 	memset(pstDBLink, 0, sizeof(TLIB_DB_LINK));
 	
-	//³õÊ¼»¯mysqlµÄÁ¬½Ó
+	//åˆå§‹åŒ–mysqlçš„è¿žæŽ¥
 	mysql_init(&(pstDBLink->stMysqlConn.stMysql));
 	
 	pstDBLink->iResNotNull = 0;
 	pstDBLink->iMultiDBConn = iMultiDBConn;	
 	pstDBLink->stMysqlConn.pstNext=NULL;
-	pstDBLink->pstCurMysqlConn = &(pstDBLink->stMysqlConn); //ÉèÖÃµ±Ç°Á¬½ÓÖ¸Õë
+	pstDBLink->pstCurMysqlConn = &(pstDBLink->stMysqlConn); //è®¾ç½®å½“å‰è¿žæŽ¥æŒ‡é’ˆ
 	pstDBLink->pstCurMysqlConn->iDBConnect = 0;
 
 	mysql_options(&pstDBLink->stMysqlConn.stMysql, MYSQL_SET_CHARSET_NAME, format);
@@ -36,14 +35,14 @@ int TLib_DB_CloseDatabase(TLIB_DB_LINK *pstDBLink)
 		pstDBLink->iResNotNull=0;
 	}		
 	
-//Èç¹ûÊÇ¶àÁ¬½ÓÔò¹Ø±Õ³ýµÚÒ»¸öµÄmysqlÁ¬½Ó£¬²¢ÊÍ·ÅÁ´±íÖÐ³ýµÚÒ»¸ö½á¹¹µÄËùÓÐÏîÄ¿
+//å¦‚æžœæ˜¯å¤šè¿žæŽ¥åˆ™å…³é—­é™¤ç¬¬ä¸€ä¸ªçš„mysqlè¿žæŽ¥ï¼Œå¹¶é‡Šæ”¾é“¾è¡¨ä¸­é™¤ç¬¬ä¸€ä¸ªç»“æž„çš„æ‰€æœ‰é¡¹ç›®
 	if (pstDBLink->iMultiDBConn!=0)
 	{
 		TLIB_MYSQL_CONN *pstMyConn,*pstMysqlConn;
 		pstMysqlConn=pstDBLink->stMysqlConn.pstNext;
 		while (pstMysqlConn!=NULL)
 		{
-			//¹Ø±ÕmysqlµÄÁ¬½Ó
+			//å…³é—­mysqlçš„è¿žæŽ¥
 			if (pstMysqlConn->iDBConnect == 1)
 			{
 				mysql_close(&(pstMysqlConn->stMysql));
@@ -54,12 +53,12 @@ int TLib_DB_CloseDatabase(TLIB_DB_LINK *pstDBLink)
 		}
 	}	
 		
-	//¹Ø±ÕÁ´±íÖÐµÚÒ»¸ömysqlÁ¬½Ó
+	//å…³é—­é“¾è¡¨ä¸­ç¬¬ä¸€ä¸ªmysqlè¿žæŽ¥
 	if (pstDBLink->stMysqlConn.iDBConnect == 1)
 		mysql_close(&(pstDBLink->stMysqlConn.stMysql));
 	
 		
-	//ÉèÖÃµ±Ç°Á¬½ÓÖ¸Õë
+	//è®¾ç½®å½“å‰è¿žæŽ¥æŒ‡é’ˆ
 	pstDBLink->stMysqlConn.iDBConnect = 0;
 	pstDBLink->stMysqlConn.pstNext=NULL;
 
@@ -72,10 +71,9 @@ int TLib_DB_CloseDatabase(TLIB_DB_LINK *pstDBLink)
 
 //--------------------------------------------------------------------
 //
-//			10.26  cyril modified this function.	
 //
-//       Ê¹µÃÕâ¸öº¯Êý¿ÉÒÔÖ§³Ö±È½Ï³¤Ê±¼äµÄÁ¬½Ó¡£Èç¹ûÁ¬½ÓÒÑ¾­±»server
-//   ¶Ï¿ª¿ÉÒÔ×Ô¶¯ÖØÐÂÁ¬½Ó
+//       ä½¿å¾—è¿™ä¸ªå‡½æ•°å¯ä»¥æ”¯æŒæ¯”è¾ƒé•¿æ—¶é—´çš„è¿žæŽ¥ã€‚å¦‚æžœè¿žæŽ¥å·²ç»è¢«server
+//   æ–­å¼€å¯ä»¥è‡ªåŠ¨é‡æ–°è¿žæŽ¥
 //
 //--------------------------------------------------------------------
 
@@ -86,10 +84,10 @@ int TLib_DB_SetDB(TLIB_DB_LINK *pstDBLink, const char *sHostAddress, const char 
 	
 	iSelectDB = 0;
 	
-	//ÅÐ¶ÏÊÇ·ñÉèÖÃÁËÖ»ÒªÒ»¸ömysqlµÄÁ¬½Ó
+	//åˆ¤æ–­æ˜¯å¦è®¾ç½®äº†åªè¦ä¸€ä¸ªmysqlçš„è¿žæŽ¥
 	if (pstDBLink->iMultiDBConn==0)
 	{
-		//Èç¹ûÒªÁ¬½ÓµÄµØÖ·ºÍµ±Ç°µÄµØÖ·²»ÊÇÍ¬Ò»Ì¨»úÆ÷ÔòÏÈcloseµ±Ç°µÄÁ¬½Ó,ÔÙÖØÐÂ½¨Á¢Á¬½Ó
+		//å¦‚æžœè¦è¿žæŽ¥çš„åœ°å€å’Œå½“å‰çš„åœ°å€ä¸æ˜¯åŒä¸€å°æœºå™¨åˆ™å…ˆcloseå½“å‰çš„è¿žæŽ¥,å†é‡æ–°å»ºç«‹è¿žæŽ¥
 		if (strcmp(pstDBLink->pstCurMysqlConn->sHostAddress, sHostAddress) != 0)
 		{
 			if (pstDBLink->pstCurMysqlConn->iDBConnect==1)
@@ -105,7 +103,7 @@ int TLib_DB_SetDB(TLIB_DB_LINK *pstDBLink, const char *sHostAddress, const char 
 			pstDBLink->pstCurMysqlConn->iDBConnect=1;
 			iSelectDB = 1;
 		}
-		else  //Èç¹ûµ±Ç°Ã»ÓÐÁ¬½Ó£¬ÔòÁ¬½Ómysql ?? cyril:  Èç¹ûµ±Ç°µØÖ·ºÍÒªÁª½ÓµÄµØÖ·ÊÇÍ¬Ò»Ì¨»úÆ÷
+		else  //å¦‚æžœå½“å‰æ²¡æœ‰è¿žæŽ¥ï¼Œåˆ™è¿žæŽ¥mysql ?? cyril:  å¦‚æžœå½“å‰åœ°å€å’Œè¦è”æŽ¥çš„åœ°å€æ˜¯åŒä¸€å°æœºå™¨
 		{
 			if (pstDBLink->pstCurMysqlConn->iDBConnect==0){
 				if (mysql_connect(&(pstDBLink->pstCurMysqlConn->stMysql), sHostAddress, sUserName, sPassword, port) == 0){
@@ -122,27 +120,27 @@ int TLib_DB_SetDB(TLIB_DB_LINK *pstDBLink, const char *sHostAddress, const char 
 			}	
 		}	
 	}
-	//¶à¸ömysqlÁ¬½ÓµÄ
+	//å¤šä¸ªmysqlè¿žæŽ¥çš„
 	else
 	{
-		//Èç¹ûÒªÁ¬½ÓµÄµØÖ·ºÍµ±Ç°µÄµØÖ·²»Í¬
+		//å¦‚æžœè¦è¿žæŽ¥çš„åœ°å€å’Œå½“å‰çš„åœ°å€ä¸åŒ
 		if (strcmp(pstDBLink->pstCurMysqlConn->sHostAddress, sHostAddress) != 0)
 		{
 			
 			TLIB_MYSQL_CONN *pstMysqlConn;
-			TLIB_MYSQL_CONN *pstMysqlConnTail;//pstMysqlConnTailÊÇÎ²Ö¸Õë
+			TLIB_MYSQL_CONN *pstMysqlConnTail;//pstMysqlConnTailæ˜¯å°¾æŒ‡é’ˆ
 			
-			//ÏÈÊÍ·ÅÏÖÔÚµÄRes
+			//å…ˆé‡Šæ”¾çŽ°åœ¨çš„Res
 			if (pstDBLink->iResNotNull == 1)
 			{
 				mysql_free_result(pstDBLink->pstRes);
 				pstDBLink->iResNotNull=0;
 			}
 			
-			//ÏÈÅÐ¶Ïµ±Ç°ÊÇ·ñÒÑ¾­Á¬½ÓÉÏDb,Èç¹ûÃ»ÓÐ¾Í¿ÉÒÔÀûÓÃ´ËÁ¬½Óconnect sHostAddressµÄDB,
+			//å…ˆåˆ¤æ–­å½“å‰æ˜¯å¦å·²ç»è¿žæŽ¥ä¸ŠDb,å¦‚æžœæ²¡æœ‰å°±å¯ä»¥åˆ©ç”¨æ­¤è¿žæŽ¥connect sHostAddressçš„DB,
 			if (pstDBLink->pstCurMysqlConn->iDBConnect==1)
 			{
-				//ÊÔÍ¼´ÓÆäËûÁ¬½ÓÕÒ³öÒÑÓÐÏàÍ¬µØÖ·µÄmysqlÁ¬½Ó
+				//è¯•å›¾ä»Žå…¶ä»–è¿žæŽ¥æ‰¾å‡ºå·²æœ‰ç›¸åŒåœ°å€çš„mysqlè¿žæŽ¥
 				pstMysqlConn=&(pstDBLink->stMysqlConn);	
 				pstMysqlConnTail=&(pstDBLink->stMysqlConn);
 				pstDBLink->pstCurMysqlConn=NULL;
@@ -163,7 +161,7 @@ int TLib_DB_SetDB(TLIB_DB_LINK *pstDBLink, const char *sHostAddress, const char 
 				}
 				
 			
-				//Ã»ÓÐÏàÍ¬µÄÔò´´½¨Ò»¸öÐÂµÄÁ¬½Ó
+				//æ²¡æœ‰ç›¸åŒçš„åˆ™åˆ›å»ºä¸€ä¸ªæ–°çš„è¿žæŽ¥
 				if (pstDBLink->pstCurMysqlConn==NULL)
 				{
 					pstMysqlConn=(TLIB_MYSQL_CONN *)malloc(sizeof(TLIB_MYSQL_CONN));
@@ -182,7 +180,7 @@ int TLib_DB_SetDB(TLIB_DB_LINK *pstDBLink, const char *sHostAddress, const char 
 					sprintf(sErrMsg, "Fail To Connect To Mysql: %s", mysql_error(&(pstDBLink->pstCurMysqlConn->stMysql)));
 					return -1;
 				}	
-				//ÉèÖÃµ±Ç°Á¬½ÓÖ¸Õë
+				//è®¾ç½®å½“å‰è¿žæŽ¥æŒ‡é’ˆ
 				pstDBLink->pstCurMysqlConn->iDBConnect=1;
 				iSelectDB = 1;
 			}
@@ -217,7 +215,7 @@ int TLib_DB_SetDB(TLIB_DB_LINK *pstDBLink, const char *sHostAddress, const char 
 	return 0;
 }
 
-/*Add By jingle 2001-08-24 */
+/*Add  2001-08-24 */
 /*
 int TLib_DB_ExecSQL_New(TLIB_DB_LINK *pstDBLink, char *sErrMsg) 
 {
@@ -226,7 +224,7 @@ int TLib_DB_ExecSQL_New(TLIB_DB_LINK *pstDBLink, char *sErrMsg)
 	char sTemp[80010];
 	char sUserinfo[20]="userinfo";
 	char sPasswd[20]="passwd";
-	// ¼ì²é²ÎÊýÊÇ·ñÕýÈ·
+	// æ£€æŸ¥å‚æ•°æ˜¯å¦æ­£ç¡®
 	if (pstDBLink->iQueryType != 0)
 	{
 		if ((pstDBLink->sQuery[0]!='s') && (pstDBLink->sQuery[0]!='S'))
@@ -245,7 +243,7 @@ int TLib_DB_ExecSQL_New(TLIB_DB_LINK *pstDBLink, char *sErrMsg)
                   	return 0;
                                    
                   }
-	// ÊÇ·ñÐèÒª¹Ø±ÕÔ­À´RecordSet
+	// æ˜¯å¦éœ€è¦å…³é—­åŽŸæ¥RecordSet
 	if (pstDBLink->iResNotNull==1)
 	{
 		mysql_free_result(pstDBLink->pstRes);
@@ -258,7 +256,7 @@ int TLib_DB_ExecSQL_New(TLIB_DB_LINK *pstDBLink, char *sErrMsg)
 		return -1;
 	}
 
-	// Ö´ÐÐÏàÓ¦µÄSQLÓï¾ä
+	// æ‰§è¡Œç›¸åº”çš„SQLè¯­å¥
 	iRetCode =mysql_query(&(pstDBLink->pstCurMysqlConn->stMysql), pstDBLink->sQuery);
 	if (iRetCode != 0)
 	{
@@ -266,7 +264,7 @@ int TLib_DB_ExecSQL_New(TLIB_DB_LINK *pstDBLink, char *sErrMsg)
 		return -1;
 	}
 	
-	// ±£´æ½á¹û
+	// ä¿å­˜ç»“æžœ
 	if (pstDBLink->iQueryType == 1)
 	{
 		pstDBLink->pstRes = mysql_store_result(&(pstDBLink->pstCurMysqlConn->stMysql));
@@ -282,7 +280,7 @@ int TLib_DB_ExecSQL(TLIB_DB_LINK *pstDBLink, char *sErrMsg)
 {
 	int   iRetCode;
 	
-	// ¼ì²é²ÎÊýÊÇ·ñÕýÈ·
+	// æ£€æŸ¥å‚æ•°æ˜¯å¦æ­£ç¡®
 	if (pstDBLink->iQueryType != 0)
 	{
 		if ((pstDBLink->sQuery[0]!='s') && (pstDBLink->sQuery[0]!='S'))
@@ -292,7 +290,7 @@ int TLib_DB_ExecSQL(TLIB_DB_LINK *pstDBLink, char *sErrMsg)
 		}
 	}
                   
-	// ÊÇ·ñÐèÒª¹Ø±ÕÔ­À´RecordSet
+	// æ˜¯å¦éœ€è¦å…³é—­åŽŸæ¥RecordSet
 	if (pstDBLink->iResNotNull==1)
 	{
 		mysql_free_result(pstDBLink->pstRes);
@@ -305,7 +303,7 @@ int TLib_DB_ExecSQL(TLIB_DB_LINK *pstDBLink, char *sErrMsg)
 		return -1;
 	}
 
-	// Ö´ÐÐÏàÓ¦µÄSQLÓï¾ä
+	// æ‰§è¡Œç›¸åº”çš„SQLè¯­å¥
 	iRetCode =mysql_query(&(pstDBLink->pstCurMysqlConn->stMysql), pstDBLink->sQuery);
 	if (iRetCode != 0)
 	{
@@ -313,7 +311,7 @@ int TLib_DB_ExecSQL(TLIB_DB_LINK *pstDBLink, char *sErrMsg)
 		return -1;
 	}
 	
-	// ±£´æ½á¹û
+	// ä¿å­˜ç»“æžœ
 	if (pstDBLink->iQueryType == 1)
 	{
 		pstDBLink->pstRes = mysql_store_result(&(pstDBLink->pstCurMysqlConn->stMysql));
@@ -328,7 +326,7 @@ int TLib_DB_RealExecSQL(TLIB_DB_LINK *pstDBLink,unsigned int len,char *sErrMsg)
 {
 	int   iRetCode;
 	
-	// ¼ì²é²ÎÊýÊÇ·ñÕýÈ·
+	// æ£€æŸ¥å‚æ•°æ˜¯å¦æ­£ç¡®
 	if (pstDBLink->iQueryType != 0)
 	{
 		if ((pstDBLink->sQuery[0]!='s') && (pstDBLink->sQuery[0]!='S'))
@@ -338,7 +336,7 @@ int TLib_DB_RealExecSQL(TLIB_DB_LINK *pstDBLink,unsigned int len,char *sErrMsg)
 		}
 	}
 
-	// ÊÇ·ñÐèÒª¹Ø±ÕÔ­À´RecordSet
+	// æ˜¯å¦éœ€è¦å…³é—­åŽŸæ¥RecordSet
 	if (pstDBLink->iResNotNull==1)
 	{
 		mysql_free_result(pstDBLink->pstRes);
@@ -351,7 +349,7 @@ int TLib_DB_RealExecSQL(TLIB_DB_LINK *pstDBLink,unsigned int len,char *sErrMsg)
 		return -1;
 	}
 
-	// Ö´ÐÐÏàÓ¦µÄSQLÓï¾ä
+	// æ‰§è¡Œç›¸åº”çš„SQLè¯­å¥
 	iRetCode =mysql_real_query(&(pstDBLink->pstCurMysqlConn->stMysql), pstDBLink->sQuery,len);
 	if (iRetCode != 0)
 	{
@@ -359,7 +357,7 @@ int TLib_DB_RealExecSQL(TLIB_DB_LINK *pstDBLink,unsigned int len,char *sErrMsg)
 		return -1;
 	}
 	
-	// ±£´æ½á¹û
+	// ä¿å­˜ç»“æžœ
 	if (pstDBLink->iQueryType == 1)
 	{
 		pstDBLink->pstRes = mysql_store_result(&(pstDBLink->pstCurMysqlConn->stMysql));
