@@ -16,16 +16,16 @@ int main(void)
         return 0;
     } 
 
-    string sUrl = "http://api.weixin.oa.com/itilalarmcgi/sendmsg";
+    string sUrl = "";
     rapidjson::StringBuffer s;
     rapidjson::Writer<rapidjson::StringBuffer> writer(s);
     string buf("data=");
     writer.StartObject();
     writer.Key("Sender");
-    writer.String("v_monitor");
+    writer.String("");
     writer.Key("Rcptto");
     writer.StartArray();
-    writer.String("willrlzhang");
+    writer.String("");
 
     writer.EndArray();
     writer.Key("isText");
