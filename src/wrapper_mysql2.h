@@ -4,7 +4,6 @@
 #include <string>
 #include <mysql.h>
 #include <stdint.h>
-//#include "mysqld_error.h"
 
 namespace dt{
 
@@ -40,11 +39,11 @@ namespace dt{
 		bool SetDatabase(const std::string& sHost, const std::string& sDBName, const std::string& sUser, const std::string& sPasswd, const uint16_t wDbPort = 3306);
 		bool Init(const std::string& sHost, const std::string& sDBName, const std::string& sUser, const std::string& sPasswd, const uint16_t wDbPort = 3306);
 
-		//»ñÈ¡´íÎóĞÅÏ¢
+		//è·å–é”™è¯¯ä¿¡æ¯
 		const char* GetErrMsg() const{	return m_szErrMsg;	};
 		uint32_t GetErrCode() const {	return m_uiErrCode;	};
 
-		//»ñÈ¡ĞĞµÄÊıÁ¿
+		//è·å–è¡Œçš„æ•°é‡
 		uint32_t GetRowCount() const 
 		{
 			if (m_bQuery) return m_dwRowCount;	
@@ -58,10 +57,10 @@ namespace dt{
 			else return 0;
 		};
 
-		// »ñÈ¡fieldµÄÃû×Ö(add by willrlzhang)
+		// è·å–fieldçš„åå­—(add by willrlzhang)
 		const char* GetFieldName(const uint32_t index);
 
-		//»ñÈ¡×Ö¶ÎÊıÁ¿
+		//è·å–å­—æ®µæ•°é‡
 		uint32_t GetFieldCount() const
 		{
 			if (m_bQuery) return m_uiFieldCount;	
@@ -79,13 +78,13 @@ namespace dt{
 		MYSQL m_stMySql;
 		MYSQL_RES *m_pRes;
 		MYSQL_ROW m_stRow;
-		MYSQL_FIELD *m_pField;                  /* ±£´æfieldµÄĞÅÏ¢(add by willrlzhang) */
+		MYSQL_FIELD *m_pField;                  /* ä¿å­˜fieldçš„ä¿¡æ¯(add by willrlzhang) */
 
-		uint32_t m_dwRowCount;				/*ÔÚ½á¹û¼¯ºÏÖĞ·µ»ØĞĞµÄÊıÁ¿*/
-		uint32_t m_dwAffectedRows;			/*·µ»ØÊÜµ½×îºóÒ»¸öUPDATE¡¢DELETE»òINSERT²éÑ¯Ó°Ïì(±ä»¯)µÄĞĞÊı*/
+		uint32_t m_dwRowCount;				/*åœ¨ç»“æœé›†åˆä¸­è¿”å›è¡Œçš„æ•°é‡*/
+		uint32_t m_dwAffectedRows;			/*è¿”å›å—åˆ°æœ€åä¸€ä¸ªUPDATEã€DELETEæˆ–INSERTæŸ¥è¯¢å½±å“(å˜åŒ–)çš„è¡Œæ•°*/
 		uint32_t m_uiFieldCount;			/**/
 
-		bool m_bConnected;						/*ÊÇ·ñÁ¬½ÓÊı¾İ¿â*/
+		bool m_bConnected;						/*æ˜¯å¦è¿æ¥æ•°æ®åº“*/
 		bool m_bQuery;
 
 
@@ -95,7 +94,7 @@ namespace dt{
 		std::string m_sPasswd;
 		uint16_t m_wDbPort;
 
-		//´íÎóĞÅÏ¢
+		//é”™è¯¯ä¿¡æ¯
 		char m_szErrMsg[1024];
 		uint32_t m_uiErrCode;
 		const char* m_pszNULL;
