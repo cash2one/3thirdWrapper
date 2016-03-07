@@ -8,7 +8,11 @@ class cKafkaConsume
 {
     public:
         cKafkaConsume()
-        {}
+        {
+            m_GloalbConf = NULL;
+            m_TopicConf = NULL;
+            m_Consumer = NULL;
+        }
 
         ~cKafkaConsume()
         {
@@ -62,7 +66,7 @@ class cKafkaConsume
             return true;
         }
 
-        bool ConsumerReading(std::string& sTopic, int64_t start_offset=RdKafka::Topic::OFFSET_END)
+        bool ConsumerReading(std::string& sTopic, int64_t start_offset=RdKafka::Topic::OFFSET_BEGINNING)
         {
             RdKafka::Topic* ptr = NULL;
             std::map<std::string, RdKafka::Topic*>::iterator iter = m_mapTopics.find(sTopic);
@@ -82,16 +86,18 @@ class cKafkaConsume
                 ptr = iter->second;
             }
 
-            RdKafka::ErrorCode resp = m_Consumer->start(ptr, 0, start_offset-10);
+            RdKafka::ErrorCode resp = m_Consumer->start(ptr, 0, start_offset);
             if (resp != RdKafka::ERR_NO_ERROR)
             {
                 m_sErrMsg = "Consumer start failed. errmsg:" + RdKafka::err2str(resp);
                 return false;
             }
 
-            RdKafka::Message* msg = m_Consumer->consume(ptr, 0, 1000);
+            RdKafka::Message* msg = m_Consumer->consume(ptr, 0, 10000);
             MsgConsume(msg, NULL);
             delete msg;
+            msg = m_Consumer->consume(ptr, 0, 10000);
+            MsgConsume(msg, NULL);
             return true;
         }
 
@@ -104,7 +110,10 @@ class cKafkaConsume
                 std::cout <<"msg key: " << *msg->key() << std::endl;
             }
 
-            std::cout << "msg len: " << static_cast<int>(msg->len()) << "\t msg :" << static_cast<char* >(msg->payload()) << std::endl;
+            //std::cout << "msg len: " << static_cast<int>(msg->len()) << "\t msg :" << static_cast<char* >(msg->payload()) << std::endl;
+            std::string sMsg(static_cast<char* >(msg->payload()), static_cast<int>(msg->len()));
+            std::cout << sMsg << std::endl;
+
             return true;
         }
 
@@ -121,6 +130,7 @@ class cKafkaConsume
                    break;
 
                case RdKafka::ERR__PARTITION_EOF:
+                   std::cout <<"partition eof\n";
                    break;
 
                case RdKafka::ERR__UNKNOWN_TOPIC:
@@ -146,16 +156,34 @@ class cKafkaMeta
 {
     public:
        cKafkaMeta()
-       {} 
+       {
+           m_Conf = NULL;
+           m_TConf = NULL;
+           m_Producer = NULL;
+           m_mapTopics.clear();
+       } 
 
        ~cKafkaMeta()
        {}
 
-       bool Init()
+       bool Init(std::string& sBrokerList)
        {
            std::string sMsg;
-           RdKafka::Conf *conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
-           m_Producer = RdKafka::Producer::create(conf, sMsg);
+           RdKafka::Conf *m_Conf = RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
+           if (m_Conf == NULL)
+           {
+               return false;
+           }
+
+           m_Conf->set("metadata.broker.list", sBrokerList, sMsg);
+           RdKafka::Conf *m_TConf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
+           if (m_TConf == NULL)
+           {
+               return false;
+           }
+
+           m_Conf->set("default_topic_conf", m_TConf, sMsg);
+           m_Producer = RdKafka::Producer::create(m_Conf, sMsg);
            if (m_Producer == NULL)
            {
                return false;
@@ -165,41 +193,262 @@ class cKafkaMeta
        bool DoMetaData(std::string& sTopic)
        {
            RdKafka::Topic* ptr = NULL;
-           std::map<std::string, RdKafka::Topic*>::iterator iter = m_mapTopics.find(sTopic);
-           if (iter != m_mapTopics.end())
+           if (!sTopic.empty())
            {
-                ptr = iter->second; 
-           }
-           else
-           {
-                std::string sMsg;
-                //ptr = RdKafka::Topic::create(m_Producer, sTopic,  , sMsg):
+                std::map<std::string, RdKafka::Topic*>::iterator iter = m_mapTopics.find(sTopic);
+                if (iter != m_mapTopics.end())
+                {
+                     ptr = iter->second; 
+                }
+                else
+                {
+                     std::string sMsg;
+                     ptr = RdKafka::Topic::create(m_Producer, sTopic,  m_TConf, sMsg);
+                     if (ptr != NULL)
+                     {
+                         m_mapTopics.insert(std::make_pair<std::string, RdKafka::Topic*>(sTopic, ptr));
+                     }
+                }
+
            }
 
            class RdKafka::Metadata* meta;
-           RdKafka::ErrorCode resp ;//= m_Producer->metadata(sTopic!=NULL, sTopic, &meta, 5000);
+           RdKafka::ErrorCode resp = m_Producer->metadata(sTopic.empty(), ptr, &meta, 5000);
            if (resp != RdKafka::ERR_NO_ERROR)
            {
                std::cout <<"metadata failed. errmsg: " << RdKafka::err2str(resp) << std::endl;
                return false;
            }
+
+           PrintMetaData(sTopic, meta);
+
+           delete meta;
+       }
+
+    private:
+       void PrintMetaData(std::string& sTopic, RdKafka::Metadata* meta)
+       {
+            std::cout <<"Metadata for " << (sTopic.empty()?"All Topics":sTopic) << "(from broker " << meta->orig_broker_id() << ":" << meta->orig_broker_name() << std::endl;            
+            
+            //brokers
+            std::cout << " " << meta->brokers()->size() << " brokers:" << std::endl;
+            
+            RdKafka::Metadata::BrokerMetadataIterator ib;
+            for (ib = meta->brokers()->begin(); ib!=meta->brokers()->end(); ib++)
+            {
+                 std::cout << "  broker " << (*ib)->id() << " at " << (*ib)->host() << ":" << (*ib)->port() << std::endl;
+            }
+
+            //topics
+            std::cout << meta->topics()->size() << " topics:" << std::endl;
+            RdKafka::Metadata::TopicMetadataIterator it;
+            for (it = meta->topics()->begin(); it!=meta->topics()->end(); it++)
+            {
+                 std::cout << "  topic \""<< (*it)->topic() << "\" with " << (*it)->partitions()->size() << " partitions:";
+                 if ((*it)->err() != RdKafka::ERR_NO_ERROR)
+                 {
+                     std::cout << " " << err2str((*it)->err());
+                     if ((*it)->err() == RdKafka::ERR_LEADER_NOT_AVAILABLE)
+                     {
+                         std::cout << " (try again)";
+                     }
+                 }
+
+                std::cout <<std::endl;
+
+                //topic's partitions 
+                RdKafka::TopicMetadata::PartitionMetadataIterator ip;
+                for (ip = (*it)->partitions()->begin();ip != (*it)->partitions()->end();ip++)
+                {
+                    std::cout << "    partition " << (*ip)->id() << ", leader " << (*ip)->leader() << ", replicas: ";
+                    //partition's replicas 
+                    RdKafka::PartitionMetadata::ReplicasIterator ir;
+                    for (ir = (*ip)->replicas()->begin();ir != (*ip)->replicas()->end();++ir)
+                    {
+                        std::cout << (ir == (*ip)->replicas()->begin() ? "":",") << *ir;
+                    }
+
+                    //partition's ISRs
+                    std::cout << ", isrs: ";
+                    RdKafka::PartitionMetadata::ISRSIterator iis;
+                   for (iis = (*ip)->isrs()->begin(); iis != (*ip)->isrs()->end() ; ++iis)
+                   {
+                       std::cout << (iis == (*ip)->isrs()->begin() ? "":",") << *iis;
+                       if ((*ip)->err() != RdKafka::ERR_NO_ERROR)
+                       {
+                           std::cout << ", " << RdKafka::err2str((*ip)->err()) << std::endl;
+                       }
+                       else
+                       {
+                           std::cout << std::endl;
+                       }
+                   } 
+                }
+            }
+
        }
 
     private:
        RdKafka::Producer* m_Producer;
-       std::map<std::string, RdKafka::Topic*> m_mapTopics;
-       
+       RdKafka::Conf* m_Conf;
+       RdKafka::Conf* m_TConf;
 
+       std::map<std::string, RdKafka::Topic*> m_mapTopics;
+};
+
+class cProducer
+{
+    public:
+        cProducer()
+        {
+            m_Producer = NULL;
+            m_Conf = NULL;
+            m_TConf = NULL;
+            m_mapTopics.clear();
+        }
+
+        ~cProducer()
+        {
+            std::map<std::string, RdKafka::Topic*>::iterator iter;
+            for (iter=m_mapTopics.begin(); iter!=m_mapTopics.end(); iter++)
+            {
+                if (iter->second != NULL)
+                {
+                    delete iter->second ;
+                    iter->second = NULL;
+                }
+            }
+
+            if (m_Conf != NULL)
+            {
+                delete m_Conf;
+                m_Conf = NULL;
+            }
+
+            if (m_TConf != NULL)
+            {
+                delete m_TConf;
+                m_TConf = NULL;
+            }
+
+            if (m_Producer != NULL)
+            {
+                m_Producer->poll(1000);
+                delete m_Producer;
+                m_Producer = NULL;
+            }
+
+            RdKafka::wait_destroyed(3000);
+        }
+
+        bool Init(std::string& sBrokerList)
+        {
+            std::string sMsg;
+            m_Conf= RdKafka::Conf::create(RdKafka::Conf::CONF_GLOBAL);
+            if (m_Conf == NULL)
+            {
+                return false;
+            }
+
+            m_TConf = RdKafka::Conf::create(RdKafka::Conf::CONF_TOPIC);
+            if (m_TConf == NULL)
+            {
+                return false;
+            }
+
+            m_Conf->set("metadata.broker.list", sBrokerList, sMsg);
+            m_Conf->set("default_topic_conf", m_TConf, sMsg);
+
+            m_Producer= RdKafka::Producer::create(m_Conf, sMsg);
+            if (m_Producer== NULL)
+            {
+                m_sErrMsg = "create consumer failed. errmsg:" + sMsg;
+                return false;
+            }
+
+            return true;
+        }
+
+        bool AddTopic(std::string sTopic)
+        {
+            RdKafka::Topic* ptr;
+            if (m_mapTopics.find(sTopic) != m_mapTopics.end())
+            {
+                std::cout <<"topic is exist\n";
+                return true;
+            } 
+
+            if (m_Producer == NULL)
+            {
+                std::cout <<"Add Topic failed.\n";
+                return false;
+            }
+
+            std::string sMsg;
+            ptr = RdKafka::Topic::create(m_Producer, sTopic, m_TConf, sMsg);
+            if (ptr == NULL)
+            {
+                m_sErrMsg = "AddTopic failed, errmsg:" +  sMsg;
+                return false;
+            }
+
+            m_mapTopics[sTopic] = ptr;
+
+            return true;
+        }
+
+        bool Produce(std::string& sTopic, std::string& sMsg, int iPartId=RdKafka::Topic::PARTITION_UA)
+        {
+            if (m_mapTopics.find(sTopic) == m_mapTopics.end())
+            {
+                m_sErrMsg = "Produce failed,m_mapTopics not find topic: " + sTopic;
+                return false;
+            }
+
+            if (m_Producer == NULL || m_mapTopics[sTopic] == NULL)
+            {
+                return false;
+            }
+
+            RdKafka::ErrorCode resp = m_Producer->produce(m_mapTopics[sTopic], iPartId, RdKafka::Producer::MSG_COPY, const_cast<char*>(sMsg.data()), sMsg.size(), NULL, NULL);
+            if (resp != RdKafka::ERR_NO_ERROR)
+            {
+                m_sErrMsg = "Produce failed. errmsg: " + RdKafka::err2str(resp);
+                return false;
+            }
+
+            return true;
+        }
+
+    private:
+        std::string m_sErrMsg;
+        RdKafka::Producer* m_Producer;
+        RdKafka::Conf* m_Conf;
+        RdKafka::Conf* m_TConf;
+        std::map<std::string, RdKafka::Topic*> m_mapTopics;
 };
 
 int main(void)
 {
+    cProducer producer;
     cKafkaConsume consumer;
     std::string sBrokerList = "10.120.88.199:9092,10.120.88.200:9092,10.120.88.201:9092,10.120.88.202:9092,10.120.88.203:9092";
-    std::string sTopic = "kafka_1023";
+    std::string sTopic = "kafka_test";
+
+    producer.Init(sBrokerList);
+    producer.AddTopic(sTopic);
+    std::string sMsg = "hello world";
+    producer.Produce(sTopic, sMsg);
+
     consumer.Init(sBrokerList);
     consumer.ConsumerReading(sTopic);
 
+    //return 0;
+    
+    cKafkaMeta meta;
+    meta.Init(sBrokerList);
+    meta.DoMetaData(sTopic);
+    
     return 0;
 }
 
