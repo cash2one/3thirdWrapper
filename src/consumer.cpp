@@ -3,6 +3,34 @@
 #include "librdkafka/rdkafkacpp.h"
 #include <map>
 #include <utility>
+#include <string.h>
+#include <stdio.h>
+
+class cFunConsumer
+{
+    public:
+        ~cFunConsumer()
+        {}
+        virtual bool operator ()(RdKafka::Message*)
+        {}
+};
+
+class cFunc:public cFunConsumer
+{
+    bool operator()(RdKafka::Message* msg)
+    {
+        std::cout <<"Read msg at offset " << msg->offset() << std::endl;
+        if (msg->key())
+        {
+            std::cout <<"msg key: " << *msg->key() << std::endl;
+        }
+
+        std::string sMsg(static_cast<char* >(msg->payload()), static_cast<int>(msg->len()));
+        std::cout << sMsg << std::endl;
+
+        return true;
+    }
+};
 
 class cKafkaConsume
 {
@@ -12,6 +40,7 @@ class cKafkaConsume
             m_GloalbConf = NULL;
             m_TopicConf = NULL;
             m_Consumer = NULL;
+            m_bRun = true;
         }
 
         ~cKafkaConsume()
@@ -93,32 +122,35 @@ class cKafkaConsume
                 return false;
             }
 
-            RdKafka::Message* msg = m_Consumer->consume(ptr, 0, 10000);
-            MsgConsume(msg, NULL);
-            delete msg;
-            msg = m_Consumer->consume(ptr, 0, 10000);
-            MsgConsume(msg, NULL);
+            while (m_bRun)
+            {
+                RdKafka::Message* msg = m_Consumer->consume(ptr, 0, 10000);
+                char buf[128];
+                strncpy(buf, sTopic.c_str(),  sTopic.size());
+                buf[sTopic.size()] = '\0';
+                MsgConsume(msg, buf);
+                delete msg;
+                msg = NULL;
+                m_Consumer->poll(0);
+            }
+
             return true;
+        }
+
+        void SetCBFunc(std::string& sTopic, cFunConsumer* obj)
+        {
+            if (!sTopic.empty())
+            {
+                m_mapCBFunc.insert(std::make_pair(sTopic, obj)); 
+            }
         }
 
     private:
-        bool DoMsg(RdKafka::Message* msg)
-        {
-            std::cout <<"Read msg at offset " << msg->offset() << std::endl;
-            if (msg->key())
-            {
-                std::cout <<"msg key: " << *msg->key() << std::endl;
-            }
-
-            //std::cout << "msg len: " << static_cast<int>(msg->len()) << "\t msg :" << static_cast<char* >(msg->payload()) << std::endl;
-            std::string sMsg(static_cast<char* >(msg->payload()), static_cast<int>(msg->len()));
-            std::cout << sMsg << std::endl;
-
-            return true;
-        }
 
        bool MsgConsume(RdKafka::Message* msg,  void* opt)
        {
+           std::map<std::string, cFunConsumer*>::iterator iter;
+           std::string s = (char*)opt;
            switch (msg->err())
            {
                case RdKafka::ERR__TIMED_OUT:
@@ -126,17 +158,27 @@ class cKafkaConsume
                    break;
 
                case RdKafka::ERR_NO_ERROR:
-                   DoMsg(msg);           
+                   //DoMsg(msg);           
+                   iter = m_mapCBFunc.find(s);
+                   if (iter != m_mapCBFunc.end())
+                   {
+                       if (iter->second != NULL)
+                       {
+                           (*iter->second)(msg);
+                       }
+                   } 
                    break;
 
                case RdKafka::ERR__PARTITION_EOF:
                    std::cout <<"partition eof\n";
+                   //m_bRun = false;
                    break;
 
                case RdKafka::ERR__UNKNOWN_TOPIC:
                case RdKafka::ERR__UNKNOWN_PARTITION:
                default:
                    std::cout << "msg consume failed, errmsg: " << msg->errstr() << std::endl;
+                   m_bRun = false;
                    break;
            }
 
@@ -150,6 +192,8 @@ class cKafkaConsume
         RdKafka::Conf *m_TopicConf;
         RdKafka::Consumer* m_Consumer;
         std::map< std::string, RdKafka::Topic* > m_mapTopics;
+        bool m_bRun;
+        std::map<std::string, cFunConsumer*> m_mapCBFunc;
 };
 
 class cKafkaMeta
@@ -430,20 +474,35 @@ class cProducer
 
 int main(void)
 {
-    cProducer producer;
+    //cProducer producer;
     cKafkaConsume consumer;
     std::string sBrokerList = "10.120.88.199:9092,10.120.88.200:9092,10.120.88.201:9092,10.120.88.202:9092,10.120.88.203:9092";
     std::string sTopic = "kafka_test";
 
+    /*
     producer.Init(sBrokerList);
     producer.AddTopic(sTopic);
-    std::string sMsg = "hello world";
-    producer.Produce(sTopic, sMsg);
+    std::string s = "hello world";
+    std::string sMsg;
+    char buf[12] ;
+    for (int i=0; i<10; i++)
+    {
+        memset(buf, 0, sizeof(buf));
+        snprintf(buf, sizeof(buf), "%d", i);
+        sMsg = s +  buf;
+        producer.Produce(sTopic, sMsg);
+
+    }
+    */
 
     consumer.Init(sBrokerList);
+    cFunConsumer* func = new cFunc;
+    consumer.SetCBFunc(sTopic, func);
     consumer.ConsumerReading(sTopic);
+    delete func;
+    func = NULL;
 
-    //return 0;
+    return 0;
     
     cKafkaMeta meta;
     meta.Init(sBrokerList);
