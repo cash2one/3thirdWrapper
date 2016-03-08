@@ -5,18 +5,38 @@
 #include <utility>
 #include <string.h>
 #include <stdio.h>
+//#include "pkg_com.pb.h"
 
 class cFunConsumer
 {
     public:
-        ~cFunConsumer()
+        cFunConsumer(std::string sNmae):m_sName(sNmae)
+    {}
+
+        virtual ~cFunConsumer()
         {}
-        virtual bool operator ()(RdKafka::Message*)
+
+        virtual bool operator()(RdKafka::Message*)
         {}
+
+        virtual std::string GetTopicName()
+        {
+            return m_sName;
+        }
+
+    private:
+        std::string m_sName;
 };
 
 class cFunc:public cFunConsumer
 {
+    public:
+        cFunc(std::string sName):cFunConsumer(sName)
+    {}
+
+        ~cFunc()
+        {}
+
     bool operator()(RdKafka::Message* msg)
     {
         std::cout <<"Read msg at offset " << msg->offset() << std::endl;
@@ -31,6 +51,48 @@ class cFunc:public cFunConsumer
         return true;
     }
 };
+
+/*
+class cKafakxxx:public cFunConsumer
+{
+    public:
+        cKafakxxx(std::string sName):cFunConsumer(sName)
+    {}
+
+        ~cKafakxxx()
+        {}
+
+        bool operator()(RdKafka::Message* msg)
+        {
+            if (msg->key())
+            {
+                std::cout << "msg key: " << *msg->key() << std::endl;
+            }
+
+            MSG::DataBlock oPkg;
+            if (!oPkg.ParseFromString(std::string(static_cast<char*>(msg->payload()), static_cast<int>(msg->len()))))
+            {
+                std::cout <<"ParseFromString failed\n";
+                return false;
+            }
+
+            uint32_t iRecordNum = oPkg.record_size();
+           for (int i=0; i<iRecordNum; i++)
+           {
+               MSG::Record record = oPkg.record(i);
+               std::cout <<"dataid is " << record.dataid() <<std::endl;
+               for (int j=0; j<record.element_size(); j++)
+               {
+                   MSG::Element element = record.element(j);
+                   std::cout << "order:" << element.order() << "\t" << "vuint64:" <<element.vuint64() <<"\t" << "vfloat:"<< element.vfloat() 
+                       <<"\t"<< "vstring:"<<element.vstring() <<"\t" <<"vint64:" <<element.vint64() <<"\n";
+               }
+           } 
+
+            std::string sMsg(static_cast<char*>(msg->payload()), static_cast<int>(msg->len()));
+        }
+};
+*/
 
 class cKafkaConsume
 {
@@ -137,7 +199,7 @@ class cKafkaConsume
             return true;
         }
 
-        void SetCBFunc(std::string& sTopic, cFunConsumer* obj)
+        void SetCBFunc(std::string sTopic, cFunConsumer* obj)
         {
             if (!sTopic.empty())
             {
@@ -164,7 +226,7 @@ class cKafkaConsume
                    {
                        if (iter->second != NULL)
                        {
-                           (*iter->second)(msg);
+                            (*iter->second)(msg);
                        }
                    } 
                    break;
@@ -477,11 +539,12 @@ int main(void)
     //cProducer producer;
     cKafkaConsume consumer;
     std::string sBrokerList = "10.120.88.199:9092,10.120.88.200:9092,10.120.88.201:9092,10.120.88.202:9092,10.120.88.203:9092";
-    std::string sTopic = "kafka_test";
+    std::string sTopic = "kafka_1023";
+    std::string sTopic1 = "kafka_test";
 
     /*
     producer.Init(sBrokerList);
-    producer.AddTopic(sTopic);
+    producer.AddTopic(sTopic1);
     std::string s = "hello world";
     std::string sMsg;
     char buf[12] ;
@@ -490,17 +553,27 @@ int main(void)
         memset(buf, 0, sizeof(buf));
         snprintf(buf, sizeof(buf), "%d", i);
         sMsg = s +  buf;
-        producer.Produce(sTopic, sMsg);
+        producer.Produce(sTopic1, sMsg);
 
     }
     */
 
     consumer.Init(sBrokerList);
-    cFunConsumer* func = new cFunc;
-    consumer.SetCBFunc(sTopic, func);
-    consumer.ConsumerReading(sTopic);
-    delete func;
-    func = NULL;
+    //cFunConsumer* func = new cKafakxxx(sTopic);
+    cFunConsumer* func1 = new cFunc(sTopic1);
+    if (func1 == NULL)
+    {
+        std::cout << "new cFunc failed.\n";
+        return 0;
+    }
+
+    //consumer.SetCBFunc(func->GetTopicName(), func);
+    consumer.SetCBFunc(func1->GetTopicName(), func1);
+    consumer.ConsumerReading(sTopic1);
+    delete func1;
+    //delete func;
+    func1 = NULL;
+    //func = NULL;
 
     return 0;
     
